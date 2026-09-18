@@ -87,7 +87,7 @@ sudo usermod -aG docker $USER
 Baixe o executável do **kind**:
 
 ```bash
-curl -Lo ./kind https://k8s.io
+curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.33.0/kind-linux-amd64
 ```
 
 Dê permissão de execução:
