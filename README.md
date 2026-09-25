@@ -1,235 +1,69 @@
-# Cilium Lab — Instalação da Máquina Virtual
+# Cilium Lab
 
-## Passo a passo de instalação
+Este repositório reúne o material de apoio para um laboratório de redes e políticas de comunicação em Kubernetes com Cilium.
 
-### 1. Baixar a ISO do Ubuntu Server
+A documentação e os arquivos do laboratório foram organizados em pastas e documentos específicos para deixar o fluxo mais claro:
 
-Baixe a versão **Ubuntu Server 24.04.x**:
+- [install-vm.md](install-vm.md): criação e configuração inicial da máquina virtual Ubuntu
+- [setup-vm.md](setup-vm.md): preparação da VM, instalação do Docker, kind, Cilium, Hubble e kubectl
+- [lab-prototipo/README.md](lab-prototipo/README.md): guia do protótipo inicial do laboratório
+- [lab-prototipo/lab-app.yaml](lab-prototipo/lab-app.yaml): manifest com os pods do laboratório
+- [lab-prototipo/lab-services.yaml](lab-prototipo/lab-services.yaml): manifest com os Services do laboratório
+- [lab-prototipo/policy.yaml](lab-prototipo/policy.yaml): política de rede do Cilium para limitar o acesso entre os pods
 
-https://ubuntu.com/download/server
+---
 
-O arquivo esperado será semelhante a:
+## Objetivo
+
+O laboratório tem como objetivo demonstrar:
+
+- criação de uma VM Ubuntu para ambiente de testes
+- provisionamento de um cluster Kubernetes local com kind
+- instalação do Cilium como CNI
+- uso de Hubble para observabilidade de tráfego
+- aplicação de políticas de rede com `CiliumNetworkPolicy`
+- validação de comunicação entre serviços dentro do cluster
+
+---
+
+## Estrutura do repositório
 
 ```text
-ubuntu-24.04.x-live-server-amd64.iso
+.
+├── README.md
+├── install-vm.md
+├── setup-vm.md
+├── lab-prototipo/
+│   ├── README.md
+│   ├── lab-app.yaml
+│   ├── lab-services.yaml
+│   └── policy.yaml
 ```
 
 ---
 
-### 2. Criar a máquina virtual no Virtual Machine Manager
+## Fluxo recomendado
 
-Abra o **Virtual Machine Manager**.
-
-1. Clique em **File**.
-
-2. Clique em **New Virtual Machine**.
-
-3. Selecione:
-
-   **Local install media (ISO image or CDROM)**
-
-4. Clique em **Forward**.
-
-5. Clique em **Browse**.
-
-6. Selecione o arquivo:
-
-   ```text
-   ubuntu-24.04.x-live-server-amd64.iso
-   ```
-
-7. Caso o Virtual Machine Manager não detecte automaticamente o sistema operacional **Ubuntu 24.04**, selecione manualmente:
-
-   ```text
-   Ubuntu 24.04 LTS
-   ```
-
-8. Clique em **Forward**.
+1. Crie a máquina virtual seguindo o passo a passo em [install-vm.md](install-vm.md).
+2. Prepare o ambiente e instale as ferramentas em [setup-vm.md](setup-vm.md).
+3. Suba a infraestrutura do protótipo em [lab-prototipo/lab-app.yaml](lab-prototipo/lab-app.yaml) e [lab-prototipo/lab-services.yaml](lab-prototipo/lab-services.yaml).
+4. Aplique a política de rede em [lab-prototipo/policy.yaml](lab-prototipo/policy.yaml).
+5. Valide o comportamento com `kubectl` e `hubble`.
 
 ---
 
-### 3. Configurar memória e CPU
+## Arquivos de laboratório
 
-Configure a máquina virtual com:
+### Prototipo inicial
 
-| Recurso |               Valor |
-| ------- | ------------------: |
-| RAM     | **8192 MiB (8 GB)** |
-| CPUs    |               **4** |
+O diretório [lab-prototipo](lab-prototipo) concentra os arquivos do laboratório inicial:
 
-Clique em **Forward**.
-
----
-
-### 4. Configurar o disco
-
-Configure o tamanho do disco como:
-
-```text
-40 GB
-```
-
-Clique em **Forward**.
+- [lab-prototipo/lab-app.yaml](lab-prototipo/lab-app.yaml) cria os pods `frontend`, `backend` e `database`
+- [lab-prototipo/lab-services.yaml](lab-prototipo/lab-services.yaml) expõe esses pods por meio de Services do tipo `ClusterIP`
+- [lab-prototipo/policy.yaml](lab-prototipo/policy.yaml) define uma regra de rede do Cilium para permitir apenas que o pod `backend` acesse o pod `database`
 
 ---
 
-### 5. Configurar nome e rede
+## Observações
 
-Configure:
-
-* **Nome da VM:** `cilium-lab`
-* **Network:** `default`
-
-A rede deve aparecer como algo equivalente a:
-
-```text
-Virtual network 'default': NAT
-```
-
-Marque:
-
-```text
-Customize configuration before install
-```
-
-Clique em **Finish**.
-
----
-
-## 6. Verificar a configuração de hardware
-
-Antes de iniciar a instalação, verifique se a VM está configurada da seguinte forma:
-
-### CPU e memória
-
-```text
-CPUs: 4
-Memory: 8192 MiB
-```
-
-### Disco
-
-```text
-Disk 1
-Bus: VirtIO
-```
-
-### Rede
-
-```text
-Network source:
-Virtual network 'default': NAT
-
-Device model:
-virtio
-```
-
-### Display e vídeo
-
-Configure:
-
-```text
-Display: SPICE
-Video: Virtio
-```
-
-Depois, clique em:
-
-**Begin Installation**
-
----
-
-# 7. Instalação do Ubuntu Server
-
-Durante a instalação do Ubuntu:
-
-### Inicialização
-
-Selecione:
-
-```text
-Try or Install Ubuntu Server
-```
-
-### Idioma
-
-Deixe:
-
-```text
-Language: English
-```
-
-### Teclado
-
-Configure:
-
-```text
-Keyboard: Portuguese (Brazil)
-```
-
-### Tipo de instalação
-
-Deixe:
-
-```text
-Installation Type: Ubuntu Server
-```
-
-O Ubuntu deverá detectar automaticamente a interface de rede.
-
----
-
-## 8. Configuração do armazenamento
-
-Quando aparecer:
-
-**Guided storage configuration**
-
-Selecione:
-
-```text
-Use an entire disk
-```
-
----
-
-## 9. Criar o usuário
-
-Na etapa de criação do usuário, utilize:
-
-| Campo           | Valor                  |
-| --------------- | ---------------------- |
-| **Your name**   | `aluno-labpesq-cilium` |
-| **Server name** | `cilium-lab`           |
-| **Username**    | `aluno-labpesq-cilium` |
-| **Password**    | `<Senha da VM>`         |
-
-O hostname da máquina pode ser:
-
-```text
-cilium-lab
-```
-
----
-
-## 10. Instalar o OpenSSH Server
-
-Quando aparecer:
-
-**Install OpenSSH server**
-
-Marque a opção para instalar o **OpenSSH Server**.
-
-Isso permitirá acessar a VM remotamente através de SSH.
-
----
-
-## 11. Featured Server Snaps
-
-Quando aparecer a tela:
-
-**Featured Server Snaps**
-
-**Não marque nenhuma das opções.**
-
-Continue a instalação normalmente.
+Este repositório foi organizado em documentos separados para deixar a instalação e a execução do laboratório mais legíveis e fáceis de seguir. O README agora funciona como índice geral do projeto, enquanto os outros arquivos concentram os passos detalhados e os manifests utilizados.

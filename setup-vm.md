@@ -183,3 +183,82 @@ cilium hubble enable
 A partir deste ponto, continue a configuração do Hubble utilizando a documentação oficial:
 
 https://docs.cilium.io/en/stable/observability/hubble/setup/#hubble-setup
+
+---
+
+## 9. Instalar o kubectl
+
+No Ubuntu, instale o cliente do Kubernetes:
+
+```bash
+sudo apt update
+sudo apt install -y kubectl
+```
+
+Se preferir usar a instalação oficial do repositório do Kubernetes, também é possível seguir este procedimento:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl
+
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.34/deb/Release.key | \
+  sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.34/deb/ /' | \
+  sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+sudo apt-get update
+sudo apt-get install -y kubectl
+```
+
+---
+
+## 10. Instalar o Hubble CLI
+
+Instale o cliente do Hubble para inspecionar fluxos de rede do cluster:
+
+```bash
+sudo apt update
+
+sudo apt install -y kubectl
+
+HUBBLE_VERSION=$(curl -s https://raw.githubusercontent.com/cilium/hubble/main/stable.txt)
+
+HUBBLE_ARCH=amd64
+
+if [ "$(uname -m)" = "aarch64" ]; then HUBBLE_ARCH=arm64; fi
+
+curl -L --fail --remote-name-all https://github.com/cilium/hubble/releases/download/$HUBBLE_VERSION/hubble-linux-${HUBBLE_ARCH}.tar.gz{,.sha256sum}
+
+sha256sum --check hubble-linux-${HUBBLE_ARCH}.tar.gz.sha256sum
+
+sudo tar xzvfC hubble-linux-${HUBBLE_ARCH}.tar.gz /usr/local/bin
+
+rm hubble-linux-${HUBBLE_ARCH}.tar.gz{,.sha256sum}
+```
+
+> Esse comando instala o binário `hubble` e deixa o cliente pronto para uso.
+
+---
+
+## 11. Laboratório de protótipo inicial
+
+A parte de criação da infraestrutura do laboratório foi separada em uma pasta dedicada para manter o guia principal de instalação mais enxuto.
+
+Consulte a pasta [lab-prototipo](lab-prototipo) e siga os passos documentados em [lab-prototipo/README.md](lab-prototipo/README.md).
+
+Nessa pasta você encontrará os arquivos:
+
+- [lab-prototipo/lab-app.yaml](lab-prototipo/lab-app.yaml)
+- [lab-prototipo/lab-services.yaml](lab-prototipo/lab-services.yaml)
+- [lab-prototipo/policy.yaml](lab-prototipo/policy.yaml)
+
+Você pode validar a infraestrutura com os comandos abaixo:
+
+```bash
+kubectl get pods
+kubectl get svc
+kubectl get cnp
+```
+
+Se tudo estiver correto, a infraestrutura do protótipo já pode ser observada com Hubble e Cilium.
