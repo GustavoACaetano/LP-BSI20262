@@ -180,10 +180,6 @@ Habilite o Hubble no cluster:
 cilium hubble enable
 ```
 
-A partir deste ponto, continue a configuração do Hubble utilizando a documentação oficial:
-
-https://docs.cilium.io/en/stable/observability/hubble/setup/#hubble-setup
-
 ---
 
 ## 9. Instalar o kubectl
