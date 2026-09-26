@@ -47,7 +47,7 @@ O laboratório tem como foco demonstrar, de forma prática, o funcionamento do C
 ├── README.md
 ├── install-vm.md
 ├── setup-vm.md
-├── lab-prototipo/
+├── lab-prototipo-inicial/
 │   ├── README.md
 │   ├── lab-app.yaml
 │   ├── lab-services.yaml
@@ -62,10 +62,10 @@ O laboratório tem como foco demonstrar, de forma prática, o funcionamento do C
 
 - [install-vm.md](install-vm.md): instruções para criar e configurar a máquina virtual Ubuntu
 - [setup-vm.md](setup-vm.md): instalação de Docker, kind, kubectl, Cilium e Hubble
-- [lab-prototipo/README.md](lab-prototipo/README.md): descrição do protótipo inicial do laboratório
-- [lab-prototipo/lab-app.yaml](lab-prototipo/lab-app.yaml): manifest com os pods de exemplo do ambiente
-- [lab-prototipo/lab-services.yaml](lab-prototipo/lab-services.yaml): serviços do cluster para comunicação interna
-- [lab-prototipo/policy.yaml](lab-prototipo/policy.yaml): política de rede para limitar a comunicação entre pods
+- [lab-prototipo-inicial/README.md](lab-prototipo-inicial/README.md): descrição do protótipo inicial do laboratório
+- [lab-prototipo-inicial/lab-app.yaml](lab-prototipo-inicial/lab-app.yaml): manifest com os pods de exemplo do ambiente
+- [lab-prototipo-inicial/lab-services.yaml](lab-prototipo-inicial/lab-services.yaml): serviços do cluster para comunicação interna
+- [lab-prototipo-inicial/policy.yaml](lab-prototipo-inicial/policy.yaml): política de rede para limitar a comunicação entre pods
 - [Proposta de Projeto - Lab Pesq.pptx](Proposta%20de%20Projeto%20-%20Lab%20Pesq.pptx): apresentação inicial da proposta do projeto
 
 ---
@@ -74,7 +74,7 @@ O laboratório tem como foco demonstrar, de forma prática, o funcionamento do C
 
 1. Siga o passo a passo de criação da VM em [install-vm.md](install-vm.md).
 2. Prepare o ambiente com as ferramentas em [setup-vm.md](setup-vm.md).
-3. Acesse o diretório [lab-prototipo](lab-prototipo) e explore os manifests do protótipo inicial.
+3. Acesse o diretório [lab-prototipo-inicial](lab-prototipo-inicial) e explore os manifests do protótipo inicial.
 4. Suba os pods e serviços com os arquivos YAML do laboratório.
 5. Aplique a política de rede e valide o comportamento com kubectl, Hubble e ferramentas de observabilidade do Cilium.
 6. Evolve a solução para contemplar cenários mais próximos da proposta de metrificação de tráfego de agentes de IA.
@@ -83,11 +83,11 @@ O laboratório tem como foco demonstrar, de forma prática, o funcionamento do C
 
 ## Prototipo inicial
 
-O diretório [lab-prototipo](lab-prototipo) contém a base inicial do laboratório:
+O diretório [lab-prototipo-inicial](lab-prototipo-inicial) contém a base inicial do laboratório:
 
-- [lab-prototipo/lab-app.yaml](lab-prototipo/lab-app.yaml) cria os pods `frontend`, `backend` e `database`
-- [lab-prototipo/lab-services.yaml](lab-prototipo/lab-services.yaml) expõe a comunicação entre os serviços dentro do cluster
-- [lab-prototipo/policy.yaml](lab-prototipo/policy.yaml) limita a comunicação para demonstrar a aplicação de políticas de rede com Cilium
+- [lab-prototipo-inicial/lab-app.yaml](lab-prototipo-inicial/lab-app.yaml) cria os pods `frontend`, `backend` e `database`
+- [lab-prototipo-inicial/lab-services.yaml](lab-prototipo-inicial/lab-services.yaml) expõe a comunicação entre os serviços dentro do cluster
+- [lab-prototipo-inicial/policy.yaml](lab-prototipo-inicial/policy.yaml) limita a comunicação para demonstrar a aplicação de políticas de rede com Cilium
 
 Esse protótipo funciona como ponto de partida para validar conceitos essenciais de rede, isolamento e observabilidade. A partir dele, a proposta pode evoluir para cenários mais complexos, incluindo identificação e medição de tráfego associado a agentes de IA.
 

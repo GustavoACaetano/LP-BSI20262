@@ -239,15 +239,15 @@ rm hubble-linux-${HUBBLE_ARCH}.tar.gz{,.sha256sum}
 
 ## 11. Laboratório de protótipo inicial
 
-A parte de criação da infraestrutura do laboratório foi separada em uma pasta dedicada para manter o guia principal de instalação mais enxuto.
+A parte de criação da infraestrutura do primeiro laboratório foi separada em uma pasta dedicada para manter o guia principal de instalação mais enxuto.
 
-Consulte a pasta [lab-prototipo](lab-prototipo) e siga os passos documentados em [lab-prototipo/README.md](lab-prototipo/README.md).
+Consulte a pasta [lab-prototipo-inicial](lab-prototipo-inicial) e siga os passos documentados em [lab-prototipo-inicial/README.md](lab-prototipo-inicial/README.md).
 
 Nessa pasta você encontrará os arquivos:
 
-- [lab-prototipo/lab-app.yaml](lab-prototipo/lab-app.yaml)
-- [lab-prototipo/lab-services.yaml](lab-prototipo/lab-services.yaml)
-- [lab-prototipo/policy.yaml](lab-prototipo/policy.yaml)
+- [lab-prototipo-inicial/lab-app.yaml](lab-prototipo-inicial/lab-app.yaml)
+- [lab-prototipo-inicial/lab-services.yaml](lab-prototipo-inicial/lab-services.yaml)
+- [lab-prototipo-inicial/policy.yaml](lab-prototipo-inicial/policy.yaml)
 
 Você pode validar a infraestrutura com os comandos abaixo:
 
