@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: user-agents
+data:
+  # Cada linha é um User-Agent enviado pelo gerador de tráfego.
+  # Agentes de IA autodeclarados se identificam por um token no User-Agent
+  # (GPTBot, ClaudeBot, PerplexityBot...). Os demais simulam tráfego comum.
+  user-agents.txt: |
+    Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)
+    Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; ChatGPT-User/1.0; +https://openai.com/bot
+    Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; OAI-SearchBot/1.0; +https://openai.com/searchbot
+    Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; ClaudeBot/1.0; +claudebot@anthropic.com)
+    Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Claude-User/1.0; +Claude-User@anthropic.com)
+    Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; PerplexityBot/1.0; +https://perplexity.ai/perplexitybot)
+    Mozilla/5.0 (Linux; Android 5.0) AppleWebKit/537.36 (KHTML, like Gecko) Mobile Safari/537.36 (compatible; Bytespider; spider-feedback@bytedance.com)
+    CCBot/2.0 (https://commoncrawl.org/faq/)
+    meta-externalagent/1.1 (+https://developers.facebook.com/docs/sharing/webmasters/crawler)
+    Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36
+    Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0
+    Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1
+    Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15
+    curl/8.10.1
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: gerador-trafego
+  labels:
+    app: gerador-trafego
+spec:
+  containers:
+    - name: gerador-trafego
+      image: curlimages/curl:8.10.1
+      command: ["/bin/sh", "-c"]
+      args:
+        - |
+          # Percorre a lista de User-Agents indefinidamente, enviando uma
+          # requisição HTTP ao frontend para cada um deles.
+          while true; do
+            while IFS= read -r ua; do
+              [ -z "$ua" ] && continue
+              for path in / /index.html /docs; do
+                curl -s -o /dev/null -w "%{http_code} $path $ua\n" \
+                  -A "$ua" "http://frontend$path"
+              done
+              sleep 1
+            done < /config/user-agents.txt
+          done
+      volumeMounts:
+        - name: user-agents
+          mountPath: /config
+  volumes:
+    - name: user-agents
+      configMap:
+        name: user-agents
