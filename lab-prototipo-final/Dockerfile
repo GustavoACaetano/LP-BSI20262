@@ -1,0 +1,7 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+COPY app/ /app/
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 DB_PATH=/data/events.sqlite3 TOKEN_TTL_SECONDS=900
+EXPOSE 8080
+CMD ["python", "/app/main.py"]

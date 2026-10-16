@@ -1,0 +1,15 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+networking:
+  disableDefaultCNI: true
+nodes:
+  - role: control-plane
+    image: kindest/node:v1.34.0
+    extraPortMappings:
+      - containerPort: 30080
+        hostPort: 18080
+        listenAddress: "127.0.0.1"
+        protocol: TCP
+    extraMounts:
+      - hostPath: "__NODE_DATA_PATH__"
+        containerPath: /var/lib/agent-trap-lab

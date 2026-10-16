@@ -1,0 +1,8 @@
+.state/
+.git/
+README.md
+tests/
+infra/
+scripts/
+__pycache__/
+*.py[cod]

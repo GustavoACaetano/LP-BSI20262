@@ -1,0 +1,106 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: agent-trap-lab
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: trap-data
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  local:
+    path: /var/lib/agent-trap-lab/trap
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values: [agent-trap-lab-control-plane]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: trap-data
+  namespace: agent-trap-lab
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: ""
+  resources:
+    requests:
+      storage: 1Gi
+  volumeName: trap-data
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trap
+  namespace: agent-trap-lab
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: trap
+  template:
+    metadata:
+      labels:
+        app: trap
+    spec:
+      containers:
+        - name: trap
+          image: agent-trap-lab:local
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet: {path: /readyz, port: http}
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: trap-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: trap
+  namespace: agent-trap-lab
+spec:
+  type: NodePort
+  selector:
+    app: trap
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      nodePort: 30080
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: trap-http-observation
+  namespace: agent-trap-lab
+spec:
+  endpointSelector:
+    matchLabels:
+      app: trap
+  ingress:
+    - toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+          rules:
+            http:
+              - {}

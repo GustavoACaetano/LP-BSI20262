@@ -1,0 +1,6 @@
+.state/
+__pycache__/
+*.py[cod]
+*.sqlite3*
+.venv/
+clab-agent-trap-clients/
