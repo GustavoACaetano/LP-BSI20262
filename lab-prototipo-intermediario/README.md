@@ -79,13 +79,6 @@ kubectl port-forward pod/frontend 8080:80
 
 O `port-forward` entra direto no pod, sem passar pela política do Cilium, então esse acesso não aparece nas métricas do Hubble.
 
-Para conferir o que a própria aplicação registrou (útil para comparar com as métricas do Hubble):
-
-```bash
-kubectl exec gerador-trafego -- curl -s http://frontend/api/acessos   # depois do passo 3
-kubectl exec database -- psql -U lab -d lab -c "SELECT user_agent, count(*) FROM acessos GROUP BY 1 ORDER BY 2 DESC;"
-```
-
 ---
 
 ## 3. Gerar o tráfego
@@ -114,6 +107,13 @@ Também é possível enviar uma requisição manual com um User-Agent qualquer:
 
 ```bash
 kubectl exec gerador-trafego -- curl -s -o /dev/null -w "%{http_code}\n" -A "MeuAgente/1.0 (compatible; GPTBot/1.2)" http://frontend/
+```
+
+Para conferir o que a própria aplicação registrou (útil para comparar com as métricas do Hubble):
+
+```bash
+kubectl exec gerador-trafego -- curl -s http://frontend/api/acessos
+kubectl exec database -- psql -U lab -d lab -c "SELECT user_agent, count(*) FROM acessos GROUP BY 1 ORDER BY 2 DESC;"
 ```
 
 ---
@@ -151,8 +151,6 @@ chmod +x metricas-agentes-ia.sh
 ./metricas-agentes-ia.sh 5m app=backend
 ```
 
-Observação: o `frontend` repassa o User-Agent original ao `backend`, mas o Hubble só enxerga o conteúdo HTTP de um pod que tenha regra L7. Para medir em `app=backend`, é preciso criar uma política L7 semelhante a `frontend-l7-visibility` para o `backend` (porta 8080, origem `app=frontend`).
-
 Exemplo de saída:
 
 ```text
@@ -186,7 +184,6 @@ A classificação é feita comparando o User-Agent, sem diferenciar maiúsculas 
     --set hubble.redact.http.headers.allow="{user-agent}"
   ```
 
-- **`/api/...` retorna 502 ou 503:** o `backend` ainda está instalando dependências (502) ou o banco ainda não está pronto (503). Acompanhe com `kubectl logs backend` e `kubectl logs database`. Se o `backend` não conseguir baixar o `psycopg`, verifique o acesso do cluster à internet.
 - **O gerador recebe erro de conexão:** a política L7 só permite `GET` vindo de `app=gerador-trafego`. Qualquer outro pod ou método é bloqueado no `frontend`, o que pode ser confirmado com `hubble observe --verdict DROPPED`.
 
 ---
