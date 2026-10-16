@@ -10,6 +10,10 @@ spec:
     - fromEndpoints:
         - matchLabels:
             app: backend
+      toPorts:
+        - ports:
+            - port: "5432"
+              protocol: TCP
 ---
 # Regra L7 no frontend: ao declarar regras HTTP, o Cilium passa a encaminhar
 # o tráfego pelo proxy Envoy, e o Hubble registra cada requisição com

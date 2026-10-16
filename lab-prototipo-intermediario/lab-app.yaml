@@ -1,3 +1,236 @@
+# Aplicação de três camadas usada no laboratório:
+#   frontend (nginx + página HTML) ──/api/──▶ backend (Python) ──SQL──▶ database (PostgreSQL)
+# O código de cada componente fica em ConfigMaps, então não é preciso
+# construir imagens próprias nem carregá-las no kind.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: database-credenciais
+type: Opaque
+stringData:
+  POSTGRES_DB: lab
+  POSTGRES_USER: lab
+  POSTGRES_PASSWORD: lab-senha
+  DATABASE_URL: postgresql://lab:lab-senha@database:5432/lab
+---
+# ---------------------------------------------------------------- database
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: database-init
+data:
+  # Executado pelo Postgres apenas na primeira inicialização do pod.
+  init.sql: |
+    CREATE TABLE artigos (
+      id       SERIAL PRIMARY KEY,
+      titulo   TEXT NOT NULL,
+      conteudo TEXT NOT NULL
+    );
+
+    -- Registro feito pela própria aplicação de cada requisição recebida.
+    -- Serve como referência para comparar com o que o Hubble observa.
+    CREATE TABLE acessos (
+      id         SERIAL PRIMARY KEY,
+      user_agent TEXT NOT NULL,
+      caminho    TEXT NOT NULL,
+      criado_em  TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
+    INSERT INTO artigos (titulo, conteudo) VALUES
+      ('O que é eBPF', 'eBPF permite executar programas seguros dentro do kernel Linux.'),
+      ('Cilium e Kubernetes', 'O Cilium usa eBPF para rede, segurança e observabilidade em clusters.'),
+      ('Observabilidade com Hubble', 'O Hubble registra os fluxos de rede e, com regras L7, o conteúdo HTTP.'),
+      ('Agentes de IA na web', 'Crawlers de IA se identificam pelo cabeçalho User-Agent.');
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: database
+  labels:
+    app: database
+spec:
+  containers:
+    - name: database
+      image: postgres:16-alpine
+      ports:
+        - containerPort: 5432
+      envFrom:
+        - secretRef:
+            name: database-credenciais
+      readinessProbe:
+        exec:
+          command: ["pg_isready", "-U", "lab", "-d", "lab"]
+        periodSeconds: 5
+      volumeMounts:
+        - name: init
+          mountPath: /docker-entrypoint-initdb.d
+  volumes:
+    - name: init
+      configMap:
+        name: database-init
+---
+# ----------------------------------------------------------------- backend
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-codigo
+data:
+  app.py: |
+    """API HTTP simples sobre o PostgreSQL.
+
+    GET /api/saude          verificação de saúde (não acessa o banco)
+    GET /api/artigos        lista os artigos
+    GET /api/artigos/<id>   detalhe de um artigo
+    GET /api/acessos        requisições registradas pela aplicação, por User-Agent
+    """
+    import json
+    import os
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    import psycopg
+
+    DSN = os.environ["DATABASE_URL"]
+
+
+    def consultar(sql, params=()):
+        with psycopg.connect(DSN) as conn:
+            cur = conn.execute(sql, params)
+            return cur.fetchall() if cur.description else []
+
+
+    class Handler(BaseHTTPRequestHandler):
+        def responder(self, status, corpo):
+            dados = json.dumps(corpo, ensure_ascii=False).encode()
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(dados)))
+            self.end_headers()
+            self.wfile.write(dados)
+
+        def do_GET(self):
+            caminho = self.path.split("?")[0].rstrip("/")
+            if caminho == "/api/saude":
+                return self.responder(200, {"status": "ok"})
+
+            try:
+                if caminho == "/api/acessos":
+                    linhas = consultar(
+                        "SELECT user_agent, count(*) FROM acessos"
+                        " GROUP BY user_agent ORDER BY 2 DESC"
+                    )
+                    return self.responder(200, [{"user_agent": u, "total": n} for u, n in linhas])
+
+                ua = self.headers.get("User-Agent", "")
+                consultar("INSERT INTO acessos (user_agent, caminho) VALUES (%s, %s)", (ua, caminho))
+
+                if caminho == "/api/artigos":
+                    linhas = consultar("SELECT id, titulo FROM artigos ORDER BY id")
+                    return self.responder(200, [{"id": i, "titulo": t} for i, t in linhas])
+
+                if caminho.startswith("/api/artigos/"):
+                    id_artigo = caminho.rsplit("/", 1)[1]
+                    if id_artigo.isdigit():
+                        linhas = consultar(
+                            "SELECT id, titulo, conteudo FROM artigos WHERE id = %s",
+                            (int(id_artigo),),
+                        )
+                        if linhas:
+                            i, t, c = linhas[0]
+                            return self.responder(200, {"id": i, "titulo": t, "conteudo": c})
+
+                return self.responder(404, {"erro": "não encontrado"})
+            except psycopg.Error as erro:
+                self.log_error("erro no banco: %s", erro)
+                return self.responder(503, {"erro": "banco indisponível"})
+
+
+    ThreadingHTTPServer(("", 8080), Handler).serve_forever()
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: backend
+  labels:
+    app: backend
+spec:
+  containers:
+    - name: backend
+      image: python:3.12-slim
+      command: ["/bin/sh", "-c"]
+      args:
+        - pip install --no-cache-dir --quiet "psycopg[binary]==3.2.3" && exec python -u /app/app.py
+      ports:
+        - containerPort: 8080
+      env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: database-credenciais
+              key: DATABASE_URL
+      readinessProbe:
+        httpGet:
+          path: /api/saude
+          port: 8080
+        periodSeconds: 5
+      volumeMounts:
+        - name: codigo
+          mountPath: /app
+  volumes:
+    - name: codigo
+      configMap:
+        name: backend-codigo
+---
+# ---------------------------------------------------------------- frontend
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-arquivos
+data:
+  # O nginx serve a página estática e repassa /api/ ao backend.
+  # O cabeçalho User-Agent original é mantido no repasse.
+  default.conf: |
+    server {
+      listen 80;
+      root /usr/share/nginx/html;
+
+      location /api/ {
+        proxy_pass http://backend:8080;
+        proxy_set_header X-Forwarded-For $remote_addr;
+      }
+
+      location / {
+        try_files $uri $uri/ =404;
+      }
+    }
+  index.html: |
+    <!doctype html>
+    <html lang="pt-BR">
+    <head>
+      <meta charset="utf-8">
+      <title>Blog do laboratório</title>
+    </head>
+    <body>
+      <h1>Blog do laboratório</h1>
+      <ul id="artigos">Carregando...</ul>
+      <script>
+        fetch("/api/artigos")
+          .then((r) => r.json())
+          .then((artigos) => {
+            const lista = document.getElementById("artigos");
+            lista.innerHTML = "";
+            for (const a of artigos) {
+              const item = document.createElement("li");
+              item.textContent = a.titulo;
+              lista.appendChild(item);
+            }
+          })
+          .catch(() => {
+            document.getElementById("artigos").textContent = "Erro ao carregar os artigos.";
+          });
+      </script>
+    </body>
+    </html>
+---
 apiVersion: v1
 kind: Pod
 metadata:
@@ -10,29 +243,14 @@ spec:
       image: nginx:alpine
       ports:
         - containerPort: 80
----
-apiVersion: v1
-kind: Pod
-metadata:
-  name: backend
-  labels:
-    app: backend
-spec:
-  containers:
-    - name: backend
-      image: nginx:alpine
-      ports:
-        - containerPort: 80
----
-apiVersion: v1
-kind: Pod
-metadata:
-  name: database
-  labels:
-    app: database
-spec:
-  containers:
-    - name: database
-      image: nginx:alpine
-      ports:
-        - containerPort: 80
+      volumeMounts:
+        - name: arquivos
+          mountPath: /etc/nginx/conf.d/default.conf
+          subPath: default.conf
+        - name: arquivos
+          mountPath: /usr/share/nginx/html/index.html
+          subPath: index.html
+  volumes:
+    - name: arquivos
+      configMap:
+        name: frontend-arquivos

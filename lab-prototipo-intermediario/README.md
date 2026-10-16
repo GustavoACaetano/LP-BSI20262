@@ -18,7 +18,11 @@ Um agente de IA autodeclarado é aquele que se identifica no cabeçalho HTTP `Us
                                      metricas-agentes-ia.sh classifica
 ```
 
-- `frontend`, `backend` e `database` são os mesmos pods do protótipo inicial.
+- `frontend`, `backend` e `database` formam uma aplicação real de três camadas:
+  - `frontend`: nginx servindo uma página HTML que lista artigos, com proxy reverso de `/api/` para o `backend` (porta 80);
+  - `backend`: API em Python que consulta o banco e registra o User-Agent de cada requisição na tabela `acessos` (porta 8080);
+  - `database`: PostgreSQL com as tabelas `artigos` e `acessos` criadas na inicialização (porta 5432).
+- O código de cada componente fica em ConfigMaps dentro de `lab-app.yaml`, então não é preciso construir imagens nem usar `kind load`.
 - `gerador-trafego` simula clientes externos, enviando requisições ao `frontend` com User-Agents de agentes de IA e de navegadores comuns.
 - A política `frontend-l7-visibility` declara regras HTTP no `frontend`. Isso faz o Cilium redirecionar o tráfego para o proxy Envoy, e o Hubble passa a enxergar o conteúdo HTTP das requisições.
 - O script `metricas-agentes-ia.sh` lê os fluxos do Hubble e gera as métricas.
@@ -27,8 +31,8 @@ Um agente de IA autodeclarado é aquele que se identifica no cabeçalho HTTP `Us
 
 ## Estrutura dos arquivos
 
-- `lab-app.yaml`: pods `frontend`, `backend` e `database`
-- `lab-services.yaml`: Services para comunicação interna
+- `lab-app.yaml`: Secret com as credenciais do banco, ConfigMaps com o código e os pods `frontend`, `backend` e `database`
+- `lab-services.yaml`: Services para comunicação interna (`frontend:80`, `backend:8080`, `database:5432`)
 - `lab-trafego.yaml`: ConfigMap com a lista de User-Agents e o pod `gerador-trafego`
 - `policy.yaml`: política `backend-database-policy` (herdada do protótipo inicial) e política L7 `frontend-l7-visibility`
 - `agentes-ia.txt`: tokens de User-Agent reconhecidos como agentes de IA (um por linha)
@@ -56,14 +60,31 @@ kubectl delete -f ../lab-prototipo-inicial/ --ignore-not-found
 ## 2. Subir a aplicação
 
 ```bash
-kubectl apply -f lab-app.yaml
 kubectl apply -f lab-services.yaml
 kubectl apply -f policy.yaml
+kubectl apply -f lab-app.yaml
+kubectl wait --for=condition=Ready pod/frontend pod/backend pod/database --timeout=180s
 kubectl get pods -o wide
 kubectl get cnp
 ```
 
-A política `frontend-l7-visibility` deve existir antes do tráfego começar, para que as requisições já passem pelo proxy L7.
+Os Services são criados primeiro porque o nginx do `frontend` resolve o nome `backend` ao iniciar. O `backend` instala o driver do PostgreSQL (`psycopg`) ao subir, por isso pode levar alguns segundos a mais para ficar pronto. A política `frontend-l7-visibility` deve existir antes do tráfego começar, para que as requisições já passem pelo proxy L7.
+
+Para ver a página no navegador da VM:
+
+```bash
+kubectl port-forward pod/frontend 8080:80
+# abra http://localhost:8080
+```
+
+O `port-forward` entra direto no pod, sem passar pela política do Cilium, então esse acesso não aparece nas métricas do Hubble.
+
+Para conferir o que a própria aplicação registrou (útil para comparar com as métricas do Hubble):
+
+```bash
+kubectl exec gerador-trafego -- curl -s http://frontend/api/acessos   # depois do passo 3
+kubectl exec database -- psql -U lab -d lab -c "SELECT user_agent, count(*) FROM acessos GROUP BY 1 ORDER BY 2 DESC;"
+```
 
 ---
 
@@ -78,7 +99,8 @@ Cada linha do log mostra o status HTTP, o caminho e o User-Agent usado:
 
 ```text
 200 / Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)
-200 /index.html Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)
+200 /api/artigos Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)
+200 /api/artigos/1 Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)
 404 /docs Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)
 ```
 
@@ -129,6 +151,8 @@ chmod +x metricas-agentes-ia.sh
 ./metricas-agentes-ia.sh 5m app=backend
 ```
 
+Observação: o `frontend` repassa o User-Agent original ao `backend`, mas o Hubble só enxerga o conteúdo HTTP de um pod que tenha regra L7. Para medir em `app=backend`, é preciso criar uma política L7 semelhante a `frontend-l7-visibility` para o `backend` (porta 8080, origem `app=frontend`).
+
 Exemplo de saída:
 
 ```text
@@ -162,6 +186,7 @@ A classificação é feita comparando o User-Agent, sem diferenciar maiúsculas 
     --set hubble.redact.http.headers.allow="{user-agent}"
   ```
 
+- **`/api/...` retorna 502 ou 503:** o `backend` ainda está instalando dependências (502) ou o banco ainda não está pronto (503). Acompanhe com `kubectl logs backend` e `kubectl logs database`. Se o `backend` não conseguir baixar o `psycopg`, verifique o acesso do cluster à internet.
 - **O gerador recebe erro de conexão:** a política L7 só permite `GET` vindo de `app=gerador-trafego`. Qualquer outro pod ou método é bloqueado no `frontend`, o que pode ser confirmado com `hubble observe --verdict DROPPED`.
 
 ---

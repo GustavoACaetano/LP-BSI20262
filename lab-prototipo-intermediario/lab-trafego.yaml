@@ -40,7 +40,7 @@ spec:
           while true; do
             while IFS= read -r ua; do
               [ -z "$ua" ] && continue
-              for path in / /index.html /docs; do
+              for path in / /api/artigos /api/artigos/1 /docs; do
                 curl -s -o /dev/null -w "%{http_code} $path $ua\n" \
                   -A "$ua" "http://frontend$path"
               done
