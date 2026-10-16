@@ -1,0 +1,39 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: backend-database-policy
+spec:
+  endpointSelector:
+    matchLabels:
+      app: database
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app: backend
+      toPorts:
+        - ports:
+            - port: "5432"
+              protocol: TCP
+---
+# Regra L7 no frontend: ao declarar regras HTTP, o Cilium passa a encaminhar
+# o tráfego pelo proxy Envoy, e o Hubble registra cada requisição com
+# método, URL, status e cabeçalhos (incluindo o User-Agent).
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: frontend-l7-visibility
+spec:
+  endpointSelector:
+    matchLabels:
+      app: frontend
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app: gerador-trafego
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+          rules:
+            http:
+              - method: "GET"

@@ -52,6 +52,14 @@ O laboratório tem como foco demonstrar, de forma prática, o funcionamento do C
 │   ├── lab-app.yaml
 │   ├── lab-services.yaml
 │   └── policy.yaml
+├── lab-prototipo-intermediario/
+│   ├── README.md
+│   ├── lab-app.yaml
+│   ├── lab-services.yaml
+│   ├── lab-trafego.yaml
+│   ├── policy.yaml
+│   ├── agentes-ia.txt
+│   └── metricas-agentes-ia.sh
 ├── slides
 │   ├── Proposta de Projeto - Lab Pesq.pptx
 ```
@@ -66,6 +74,7 @@ O laboratório tem como foco demonstrar, de forma prática, o funcionamento do C
 - [lab-prototipo-inicial/lab-app.yaml](lab-prototipo-inicial/lab-app.yaml): manifest com os pods de exemplo do ambiente
 - [lab-prototipo-inicial/lab-services.yaml](lab-prototipo-inicial/lab-services.yaml): serviços do cluster para comunicação interna
 - [lab-prototipo-inicial/policy.yaml](lab-prototipo-inicial/policy.yaml): política de rede para limitar a comunicação entre pods
+- [lab-prototipo-intermediario/README.md](lab-prototipo-intermediario/README.md): protótipo que metrifica requisições de agentes de IA autodeclarados pelo User-Agent
 - [Proposta de Projeto - Lab Pesq.pptx](Proposta%20de%20Projeto%20-%20Lab%20Pesq.pptx): apresentação inicial da proposta do projeto
 
 ---
@@ -77,7 +86,7 @@ O laboratório tem como foco demonstrar, de forma prática, o funcionamento do C
 3. Acesse o diretório [lab-prototipo-inicial](lab-prototipo-inicial) e explore os manifests do protótipo inicial.
 4. Suba os pods e serviços com os arquivos YAML do laboratório.
 5. Aplique a política de rede e valide o comportamento com kubectl, Hubble e ferramentas de observabilidade do Cilium.
-6. Evolve a solução para contemplar cenários mais próximos da proposta de metrificação de tráfego de agentes de IA.
+6. Avance para o [lab-prototipo-intermediario](lab-prototipo-intermediario), que metrifica as requisições de agentes de IA autodeclarados.
 
 ---
 
@@ -90,6 +99,16 @@ O diretório [lab-prototipo-inicial](lab-prototipo-inicial) contém a base inici
 - [lab-prototipo-inicial/policy.yaml](lab-prototipo-inicial/policy.yaml) limita a comunicação para demonstrar a aplicação de políticas de rede com Cilium
 
 Esse protótipo funciona como ponto de partida para validar conceitos essenciais de rede, isolamento e observabilidade. A partir dele, a proposta pode evoluir para cenários mais complexos, incluindo identificação e medição de tráfego associado a agentes de IA.
+
+---
+
+## Protótipo intermediário
+
+O diretório [lab-prototipo-intermediario](lab-prototipo-intermediario) parte da mesma base e adiciona a metrificação do tráfego de agentes de IA:
+
+- [lab-prototipo-intermediario/lab-trafego.yaml](lab-prototipo-intermediario/lab-trafego.yaml) cria um gerador de tráfego que envia requisições ao `frontend` com User-Agents de agentes de IA e de navegadores comuns
+- [lab-prototipo-intermediario/policy.yaml](lab-prototipo-intermediario/policy.yaml) adiciona uma política L7 que faz o Cilium inspecionar o HTTP do `frontend`, permitindo que o Hubble registre o `User-Agent`
+- [lab-prototipo-intermediario/metricas-agentes-ia.sh](lab-prototipo-intermediario/metricas-agentes-ia.sh) lê os fluxos do Hubble e contabiliza quantas requisições vêm de agentes de IA autodeclarados
 
 ---
 
