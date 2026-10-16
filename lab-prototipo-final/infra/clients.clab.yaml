@@ -1,0 +1,17 @@
+name: agent-trap-clients
+mgmt:
+  network: kind
+topology:
+  nodes:
+    client:
+      kind: linux
+      image: agent-trap-lab:local
+      cmd: sleep infinity
+      binds:
+        - ../tools/smoke.py:/smoke.py:ro
+    reference:
+      kind: linux
+      image: agent-trap-lab:local
+      cmd: sleep infinity
+      binds:
+        - ../tools/smoke.py:/smoke.py:ro

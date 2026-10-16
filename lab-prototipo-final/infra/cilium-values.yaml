@@ -1,0 +1,35 @@
+image:
+  repository: quay.io/cilium/cilium
+  tag: v1.20.2
+routingMode: tunnel
+tunnelProtocol: vxlan
+ipam:
+  mode: kubernetes
+kubeProxyReplacement: false
+operator:
+  replicas: 1
+envoy:
+  enabled: true
+hubble:
+  enabled: true
+  relay:
+    enabled: true
+  ui:
+    enabled: true
+  metrics:
+    enabled:
+      - dns
+      - drop
+      - tcp
+      - flow
+      - httpV2:sourceContext=workload|reserved-identity;destinationContext=workload|reserved-identity
+    serviceMonitor:
+      enabled: false
+    dashboards:
+      enabled: false
+  redact:
+    enabled: true
+    http:
+      urlQuery: true
+      headers:
+        allow: ["User-Agent"]
